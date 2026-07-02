@@ -199,7 +199,7 @@ int main() {
         }
 
 
-        rendercast(&cam, &map, &frame);
+        rendercast_auto(&cam, &map, &frame);
 
         InvalidateRect(disp.hwnd, NULL, FALSE);
         UpdateWindow(disp.hwnd);

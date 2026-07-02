@@ -6,12 +6,21 @@
 #include "disp.h"
 #include <stdint.h>
 
+
 typedef struct {
 
     Types list[MAX_DEPTH];
     uint8_t depth;
 
 } HitList;
+
+typedef struct {
+    uint32_t height;
+    uint32_t width;
+
+    uint32_t* colors;
+} Texture;
+
 
 typedef struct {
 
@@ -23,7 +32,18 @@ typedef struct {
     uint32_t rays;
     double step;
 
+    Texture wall_tex[4];
+
 } Camera;
+
+
+
+
+void load_texture(Texture* t, const char* path);
+
+void clear_buf(Texture* t);
+
+void rendercast_auto(Camera* cam, Map* m, Frame* f);
 
 void rendercast(Camera* cam, Map* m, Frame* f);
 
