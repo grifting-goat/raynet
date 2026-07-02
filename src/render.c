@@ -23,6 +23,8 @@ void rendercast(Camera* cam, Map* m, Frame* f) {
 
     double px = cam->pos[0];
     double py = cam->pos[1];
+    double eye_z = 0.5 + cam->pos[2];
+    double proj_scale = (double)f->height;
 
     int depth = (int)ceil(cam->max_distance);
     if (depth < 1) {
@@ -131,9 +133,12 @@ void rendercast(Camera* cam, Map* m, Frame* f) {
                 continue;
             }
 
-            int wall_h = (int)(f->height / dist);
-            top    = (f->height >> 1) - (wall_h >> 1);
-            bottom = top + wall_h;
+            double screen_center = (double)(f->height >> 1);
+            double wall_top = screen_center - ((1.0 - eye_z) / dist) * proj_scale;
+            double wall_bottom = screen_center - ((0.0 - eye_z) / dist) * proj_scale;
+
+            top = (int)wall_top;
+            bottom = (int)wall_bottom;
 
             top    = CLAMP(top,    0, (int)f->height);
             bottom = CLAMP(bottom, 0, (int)f->height);

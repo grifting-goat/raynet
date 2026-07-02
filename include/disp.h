@@ -25,6 +25,8 @@ typedef struct Display {
 	HDC frame_device_context;
 	uint32_t* frame_pixels;
 
+	char buf[128];
+
     //properties
     bool resizable;
 } Display;

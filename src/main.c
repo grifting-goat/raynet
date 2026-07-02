@@ -178,6 +178,7 @@ int main() {
             next_x -= cos(cam.angle) * move_speed * dt;
             next_y += sin(cam.angle) * move_speed * dt;
         }
+        
 
         if (GetAsyncKeyState('A') & 0x8000) {
             next_x += sin(cam.angle) * move_speed * dt;
@@ -188,6 +189,15 @@ int main() {
             next_x -= sin(cam.angle) * move_speed * dt;
             next_y -= cos(cam.angle) * move_speed * dt;
         }
+        
+        if (GetAsyncKeyState(VK_UP) & 0x8000) {
+            cam.pos[2] += move_speed * dt;
+        }
+
+        if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+            cam.pos[2] -= move_speed * dt;
+        }
+
 
         rendercast(&cam, &map, &frame);
 
@@ -203,7 +213,7 @@ int main() {
         fps_print_accum += dt;
         if (fps_print_accum >= 0.25) {
             double fps = (dt > 0.0) ? (1.0 / dt) : 0.0;
-            printf("pos: %f %f angle: %f fps: %f \r", cam.pos[0], cam.pos[1], cam.angle, fps);
+            snprintf(disp.buf, sizeof(disp.buf), "fps: %d\npos: %.2f %.2f %.2f\nangle: %.2f\n",(int)fps, cam.pos[0], cam.pos[1], cam.pos[2], cam.angle);
             fps_print_accum = 0.0;
         }
     }

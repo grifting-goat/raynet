@@ -30,6 +30,14 @@ static LRESULT CALLBACK disp_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
 					   paint.rcPaint.left, paint.rcPaint.top,
 					   SRCCOPY);
 			}
+
+			RECT rect = {10, 10, 300, 200};
+
+			SetBkMode(device_context, TRANSPARENT);
+			SetTextColor(device_context, RGB(255, 255, 255)); 
+
+			DrawTextA(device_context, window->buf, -1, &rect, DT_LEFT | DT_TOP);
+
             EndPaint(hwnd, &paint);
         } 
 		break;
