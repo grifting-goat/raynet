@@ -58,14 +58,27 @@ int main() {
     cam.pos[1] = 30.5;
     cam.pos[2] = 0.3;
 
-    Map map = create_map(64,64);
+    Map map = create_map(128,128);
 
-    for (uint32_t r = 0; r < 64; r++) {
-        for (uint32_t c = 0; c < 64; c++) {
+    for (uint32_t r = 0; r < 128; r++) {
+        for (uint32_t c = 0; c < 128; c++) {
             map.chunk_map[r][c].blocks[0] = Rand32() % 12 ? 0 : Rand32() % 5;
         }
     }
-    map.chunk_map[8][8].blocks[0] = 0;
+
+    for (uint32_t r = 8; r <= 15; r++) {
+        for (uint32_t c = 8; c <= 15; c++) {
+            map.chunk_map[r][c].blocks[0] = 3;
+        }
+    }
+
+    map.chunk_map[10][9].blocks[0] = 0;
+    map.chunk_map[10][10].blocks[0] = 0;
+    map.chunk_map[10][11].blocks[0] = 0;
+    map.chunk_map[10][12].blocks[0] = 0;
+    map.chunk_map[10][8].blocks[0] = 0;
+    map.chunk_map[10][13].blocks[0] = 0;
+    map.chunk_map[10][14].blocks[0] = 0;
 
     Display disp;
     if (!disp_init(&disp, 1280, 720, "Raynet")) {

@@ -1,3 +1,0 @@
-C:/Users/onewi/grifting-goat/raynet/release/CMakeFiles/raynet.dir
-C:/Users/onewi/grifting-goat/raynet/release/CMakeFiles/ALL_BUILD.dir
-C:/Users/onewi/grifting-goat/raynet/release/CMakeFiles/ZERO_CHECK.dir

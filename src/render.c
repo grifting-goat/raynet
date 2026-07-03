@@ -153,7 +153,12 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
     double px = cam->pos[0];
     double py = cam->pos[1];
     double eye_z = 0.5 + cam->pos[2];
-    double proj_scale = (double)f->height;
+
+    double half_fov = cam->fov / 2.0;
+    double tan_half_fov = tan(half_fov);
+    double focal_length = ((double)f->width / 2.0) / tan_half_fov;
+    double proj_scale = focal_length;
+    double half_rays = (double)cam->rays / 2.0;
     double screen_center = (double)(f->height >> 1) + (tan(cam->pitch) * proj_scale);
     double inv_max_distance = 1.0 / cam->max_distance;
     Texture* floor_tex = &cam->wall_tex[5];
@@ -164,6 +169,10 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
     }
 
     for (uint32_t r = ray_start; r < ray_end; r++) {
+
+        double screen_offset = ((double)r - half_rays) / half_rays;
+        double angle_offset = atan(screen_offset * tan_half_fov);
+        ra = fix_angle(cam->roll + angle_offset);
 
         //vert
         dof = 0; disV = INFINITY;
@@ -263,8 +272,6 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
 
             if (dist <= 0.0001) {
-                ra += cam->step;
-                fix_angle_inplace(&ra);
                 continue;
             }
 
@@ -350,9 +357,6 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
             f->pixels[i * f->width + (int)r] = color;
         }
-
-        ra += cam->step;
-        fix_angle_inplace(&ra);
     }
 }
 
