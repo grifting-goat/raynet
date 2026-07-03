@@ -26,7 +26,7 @@ typedef struct {
     uint32_t rays;
     double step;
 
-    Texture wall_tex[4];
+    Texture wall_tex[6];
 
 } Camera;
 

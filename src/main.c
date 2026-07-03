@@ -54,14 +54,15 @@ int main() {
 
 
     init_camera(&cam, 103.0, 32, 1280);
-    cam.pos[0] = 8.5;
-    cam.pos[1] = 8.5;
+    cam.pos[0] = 30.5;
+    cam.pos[1] = 30.5;
+    cam.pos[2] = 0.3;
 
-    Map map = create_map(32,32);
+    Map map = create_map(64,64);
 
-    for (uint32_t r = 0; r < 32; r++) {
-        for (uint32_t c = 0; c < 32; c++) {
-            map.chunk_map[r][c].blocks[0] = Rand32() % 7 ? 0 : Rand32() % 4;
+    for (uint32_t r = 0; r < 64; r++) {
+        for (uint32_t c = 0; c < 64; c++) {
+            map.chunk_map[r][c].blocks[0] = Rand32() % 12 ? 0 : Rand32() % 5;
         }
     }
     map.chunk_map[8][8].blocks[0] = 0;

@@ -155,6 +155,8 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
     double eye_z = 0.5 + cam->pos[2];
     double proj_scale = (double)f->height;
     double screen_center = (double)(f->height >> 1) + (tan(cam->pitch) * proj_scale);
+    double inv_max_distance = 1.0 / cam->max_distance;
+    Texture* floor_tex = &cam->wall_tex[5];
 
     int depth = (int)ceil(cam->max_distance);
     if (depth < 1) {
@@ -166,11 +168,9 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
         //vert
         dof = 0; disV = INFINITY;
 
-        uint32_t colorV = 0xFF000000;
-        uint32_t colorH = 0xFF000000;
-
         double tan_ra = tan(ra);
         double cos_ra = cos(ra);
+        double sin_ra = sin(ra);
         if(cos_ra> 0.001){ 
             rx = (double)((int)px + 1);
             ry = (px-rx)*tan_ra+py; 
@@ -190,17 +190,16 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
             my = (int)(ry);
             if (!isbounds(m, mx, my)) {
                 dof = depth;
-                //double dx = rx - px;
-                //double dy = ry - py;
-                //disV = sqrt(dx * dx + dy * dy);
                 continue;
-            }             
-            if(m->chunk_map[mx][my].blocks[0]){ //test hit
+            }
+
+            uint8_t block = m->chunk_map[mx][my].blocks[0];
+            if(block){ //test hit
                 double dx = rx - px;
                 double dy = ry - py;
                 dof = depth;
                 disV = sqrt(dx * dx + dy * dy);
-                tV = (Types)m->chunk_map[mx][my].blocks[0];
+                tV = (Types)block;
                 texVX = texture_x(ry - floor(ry), &cam->wall_tex[tV]);
             }//hit
             else{ rx += xo; ry += yo; dof += 1;}                                              
@@ -209,7 +208,6 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
         //hori
         dof = 0; disH = INFINITY;
         tan_ra = 1.0/tan_ra;
-        double sin_ra = sin(ra);
         if(sin_ra > 0.001){
             ry = (double)((int)py) - 0.0001;
             rx = (py-ry)*tan_ra+px;
@@ -230,28 +228,25 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
             if (!isbounds(m, mx, my)) {
                 dof = depth;
-                //double dx = rx - px;
-                //double dy = ry - py;
-                //disH = sqrt(dx * dx + dy * dy);
                 continue;
-            }    
+            }
 
-            if(m->chunk_map[mx][my].blocks[0]){ //test hit
+            uint8_t block = m->chunk_map[mx][my].blocks[0];
+            if(block){ //test hit
                 double dx = rx - px;
                 double dy = ry - py;
                 dof = depth;
                 disH = sqrt(dx * dx + dy * dy);
 
-                tH = (Types)m->chunk_map[mx][my].blocks[0];
+                tH = (Types)block;
                 texHX = texture_x(rx - floor(rx), &cam->wall_tex[tH]);
-
-                //colorH = get_color((Types)m->chunk_map[mx][my].blocks[0]);
             }
             else{ rx += xo; ry += yo; dof += 1;}
         }
 
         bool vertical_hit = disV < disH;
         double dist = vertical_hit ? disV : disH;
+        double raw_dist = dist;
         Types type = vertical_hit ? tV : tH;
         int texX = vertical_hit ? texVX : texHX;
 
@@ -259,10 +254,13 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
         int bottom = top;
         int screen_top = top;
         int screen_bottom = bottom;
+
+        double cos_ca = cos(fix_angle(cam->roll-ra));
+        dist *= cos_ca;
+
         if (isfinite(dist) && dist <= cam->max_distance) {
 
-            double ca = fix_angle(cam->roll-ra);
-            dist *= cos(ca);
+
 
             if (dist <= 0.0001) {
                 ra += cam->step;
@@ -285,16 +283,15 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
             Texture* tex = &cam->wall_tex[type];
             if (tex->colors != NULL) {
-                texX = vertical_hit ? texVX : texHX;
-                double t = dist / cam->max_distance;
+                double t = raw_dist * inv_max_distance;
                 if (t < 0.0) { t = 0.0; }
                 if (t > 1.0) { t = 1.0; }
-                double brightness = 1.0 / (1.0 + 1.8 * t * t);
+                double brightness = 1.0 - t;
                 uint8_t shade = (uint8_t)(brightness * 255.0);
                 for (uint32_t i = (uint32_t)screen_top; i < (uint32_t)screen_bottom; i++) {
                     uint32_t texZ = texture_z(top, bottom, screen_top, screen_bottom, (int)i, tex);
                     uint32_t color = tex->colors[(texZ * tex->width) + texX];
-                    f->pixels[i * f->width + (int)r] = lerp_u32(0xFFAAAAFF, color, shade);
+                    f->pixels[i * f->width + (int)r] = lerp_u32(SKY_COLOR, color, shade);
                 }
             } else {
                 uint32_t color = get_color(type); //remove this
@@ -309,14 +306,48 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
         screen_bottom = CLAMP(screen_bottom, 0, (int)f->height);
         
         for (int i = 0; i < screen_top; i++) {
-            f->pixels[i * f->width + (int)r] = 0xFFAAAAFF;
+                    f->pixels[i * f->width + (int)r] = SKY_COLOR;
         }
 
-        int flr = screen_bottom < (int)screen_center ? (int)screen_center : screen_bottom;
-        flr = CLAMP(flr, 0, (int)f->height);
-        for (int i = flr; i < f->height; i++) {
-            uint8_t intense = 0x30 + (uint8_t)(0.2 * (double)i) ;
-            uint32_t color = (intense << 16) | (intense << 8) | (intense);
+        //flor
+        int floor_start = screen_bottom;                
+        floor_start = CLAMP(floor_start, 0, (int)f->height);
+
+        for (int i = floor_start; i < (int)f->height; i++) {
+            double denom = (double)i - screen_center;
+            if (denom < 1.0) {
+                f->pixels[i * f->width + (int)r] = SKY_COLOR;
+                continue;
+            }
+            double row_dist = (eye_z * proj_scale) / denom;
+            if (fabs(cos_ca) > 0.0001) {
+                row_dist /= cos_ca;
+            }
+
+            double world_x = px + cos_ra * row_dist;
+            double world_y = py - sin_ra * row_dist;
+
+            uint32_t color;
+            if (floor_tex->colors != NULL) {
+                double fx = world_x - floor(world_x);
+                double fy = world_y - floor(world_y);
+                int ftx = (int)(fx * (double)floor_tex->width);
+                int fty = (int)(fy * (double)floor_tex->height);
+                ftx = CLAMP(ftx, 0, (int)floor_tex->width - 1);
+                fty = CLAMP(fty, 0, (int)floor_tex->height - 1);
+                color = floor_tex->colors[fty * floor_tex->width + ftx];
+
+                double t = row_dist * inv_max_distance;
+                if (t < 0.0) { t = 0.0; }
+                if (t > 1.0) { t = 1.0; }
+                double brightness = 1.0 - t;
+                uint8_t shade = (uint8_t)(brightness * 255.0);
+                color = lerp_u32(SKY_COLOR, color, shade);
+            } else {
+                uint8_t intense = 0x30 + (uint8_t)(0.2 * (double)i);
+                color = (0xFFu << 24) | ((uint32_t)intense << 16) | ((uint32_t)intense << 8) | intense;
+            }
+
             f->pixels[i * f->width + (int)r] = color;
         }
 
@@ -329,13 +360,6 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
 
 
-
-
-
-
-
-
-//legacy
 void rendercast(Camera* cam, Map* m, Frame* f) {
     rendercast_auto(cam, m, f);
 }
@@ -390,10 +414,18 @@ void init_camera(Camera* cam, double fov, double max_distance, uint32_t rays) {
     Texture obby;
     load_texture(&obby, "resources/obby.ppm");
 
+    Texture cob;
+    load_texture(&cob, "resources/cobble.ppm");
+
+    Texture grass;
+    load_texture(&grass, "resources/grass.ppm");
+
     cam->wall_tex[0] = brick;   
     cam->wall_tex[1] = brick;
     cam->wall_tex[2] = dirt;
     cam->wall_tex[3] = obby;
+    cam->wall_tex[4] = cob;
+    cam->wall_tex[5] = grass;
 
 }
 

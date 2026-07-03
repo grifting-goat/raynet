@@ -10,6 +10,7 @@
 #define MAX_DEPTH 8
 
 #define PI 3.14159265359
+#define SKY_COLOR 0xFFAAAAFF
 
 #define CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
 
@@ -18,7 +19,9 @@ typedef enum {
     BLOCK_VOID = 0,
     BRICK,
     DIRT,
-    OBSIDIAN
+    OBSIDIAN,
+    COBBLE,
+    GRASS
 
 } Types;
 
