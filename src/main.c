@@ -53,7 +53,7 @@ int main() {
     Camera cam;
 
 
-    init_camera(&cam, 103.0, 64, 1280);
+    init_camera(&cam, 103.0, 32, 1280);
     cam.pos[0] = 8.5;
     cam.pos[1] = 8.5;
 
@@ -152,42 +152,46 @@ int main() {
             POINT mouse_pos = {0};
             if (GetCursorPos(&mouse_pos) && ScreenToClient(disp.hwnd, &mouse_pos)) {
                 int delta_x = mouse_pos.x - (disp.width / 2);
-                if (delta_x != 0) {
-                    cam.angle += (double)delta_x * mouse_sensitivity;
-                }
+                int delta_y = mouse_pos.y - (disp.height / 2);
+
+                if (delta_x != 0) {cam.roll += (double)delta_x * mouse_sensitivity;}
+                if (delta_y != 0) {cam.pitch -= (double)delta_y * mouse_sensitivity;}
             }
             center_cursor(&disp);
         }
 
+        if (cam.pitch > 1.5f) {cam.pitch = 1.5f;}
+        if (cam.pitch < -1.5f) {cam.pitch = -1.5f;}
+
         if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-            cam.angle -= turn_speed * dt;
+            cam.roll -= turn_speed * dt;
         }
 
         if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-            cam.angle += turn_speed * dt;
+            cam.roll += turn_speed * dt;
         }
 
-        fix_angle_inplace(&cam.angle);
+        fix_angle_inplace(&cam.roll);
 
         if (GetAsyncKeyState('W') & 0x8000) {
-            next_x += cos(cam.angle) * move_speed * dt;
-            next_y -= sin(cam.angle) * move_speed * dt;
+            next_x += cos(cam.roll) * move_speed * dt;
+            next_y -= sin(cam.roll) * move_speed * dt;
         }
 
         if (GetAsyncKeyState('S') & 0x8000) {
-            next_x -= cos(cam.angle) * move_speed * dt;
-            next_y += sin(cam.angle) * move_speed * dt;
+            next_x -= cos(cam.roll) * move_speed * dt;
+            next_y += sin(cam.roll) * move_speed * dt;
         }
         
 
         if (GetAsyncKeyState('A') & 0x8000) {
-            next_x += sin(cam.angle) * move_speed * dt;
-            next_y += cos(cam.angle) * move_speed * dt;
+            next_x += sin(cam.roll) * move_speed * dt;
+            next_y += cos(cam.roll) * move_speed * dt;
         }
 
         if (GetAsyncKeyState('D') & 0x8000) {
-            next_x -= sin(cam.angle) * move_speed * dt;
-            next_y -= cos(cam.angle) * move_speed * dt;
+            next_x -= sin(cam.roll) * move_speed * dt;
+            next_y -= cos(cam.roll) * move_speed * dt;
         }
         
         if (GetAsyncKeyState(VK_UP) & 0x8000) {
@@ -213,7 +217,7 @@ int main() {
         fps_print_accum += dt;
         if (fps_print_accum >= 0.25) {
             double fps = (dt > 0.0) ? (1.0 / dt) : 0.0;
-            snprintf(disp.buf, sizeof(disp.buf), "fps: %d\npos: %.2f %.2f %.2f\nangle: %.2f\n",(int)fps, cam.pos[0], cam.pos[1], cam.pos[2], cam.angle);
+            snprintf(disp.buf, sizeof(disp.buf), "fps: %d\npos: %.2f %.2f %.2f\nangle: %.2f %.2f \n",(int)fps, cam.pos[0], cam.pos[1], cam.pos[2], cam.roll, cam.pitch);
             fps_print_accum = 0.0;
         }
     }

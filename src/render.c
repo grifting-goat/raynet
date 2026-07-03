@@ -63,47 +63,6 @@ uint32_t texture_z(int real_top, int real_bottom, int screen_top, int screen_bot
 
 void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_t ray_end);
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-
-void load_texture(Texture* t, const char* path) {
-    FILE* f = fopen(path, "rb");
-    if (!f) { fprintf(stderr, "could not open %s\n", path); exit(1); }
-
-    char magic[3] = {0};
-    int width, height, maxval;
-    fscanf(f, "%2s", magic);
-    fscanf(f, "%d %d %d", &width, &height, &maxval);
-    fgetc(f);                        
-
-    t->width = (uint32_t)width;
-    t->height = (uint32_t)height;
-    t->colors = malloc((size_t)width * height * sizeof(uint32_t));
-
-    uint8_t* rgb = malloc((size_t)width * height * 3);
-    fread(rgb, (size_t)width * height * 3, 1, f);
-    fclose(f);
-    
-    for (int i = 0; i < width * height; i++) {
-        uint8_t r = rgb[i*3+0], g = rgb[i*3+1], b = rgb[i*3+2];
-        t->colors[i] = 0xFF000000 | ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
-    }
-
-    free(rgb);
-
-    printf("loaded: %s", path);
-}
-
-void clear_buf(Texture* t) {
-    t->height = 0;
-    t->width = 0;
-    
-    free(t->colors);
-    t->colors = NULL;
-}
-
-
 
 bool isbounds(Map* m, int x, int y) {
     if (x < 0 || y < 0) {
@@ -188,13 +147,14 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
     Types tH = 0, tV = 0;
 
     ra = fix_angle(
-        cam->angle - ((double)cam->rays * cam->step) / 2.0 + ((double)ray_start * cam->step)
+        cam->roll - ((double)cam->rays * cam->step) / 2.0 + ((double)ray_start * cam->step)
     );
 
     double px = cam->pos[0];
     double py = cam->pos[1];
     double eye_z = 0.5 + cam->pos[2];
     double proj_scale = (double)f->height;
+    double screen_center = (double)(f->height >> 1) + (tan(cam->pitch) * proj_scale);
 
     int depth = (int)ceil(cam->max_distance);
     if (depth < 1) {
@@ -295,13 +255,13 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
         Types type = vertical_hit ? tV : tH;
         int texX = vertical_hit ? texVX : texHX;
 
-        int top = (f->height >> 1);
+        int top = screen_center;
         int bottom = top;
         int screen_top = top;
         int screen_bottom = bottom;
         if (isfinite(dist) && dist <= cam->max_distance) {
 
-            double ca = fix_angle(cam->angle-ra);
+            double ca = fix_angle(cam->roll-ra);
             dist *= cos(ca);
 
             if (dist <= 0.0001) {
@@ -310,7 +270,7 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
                 continue;
             }
 
-            double screen_center = (double)(f->height >> 1);
+            
             double wall_top = screen_center - ((1.0 - eye_z) / dist) * proj_scale;
             double wall_bottom = screen_center - ((0.0 - eye_z) / dist) * proj_scale;
 
@@ -326,10 +286,15 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
             Texture* tex = &cam->wall_tex[type];
             if (tex->colors != NULL) {
                 texX = vertical_hit ? texVX : texHX;
+                double t = dist / cam->max_distance;
+                if (t < 0.0) { t = 0.0; }
+                if (t > 1.0) { t = 1.0; }
+                double brightness = 1.0 / (1.0 + 1.8 * t * t);
+                uint8_t shade = (uint8_t)(brightness * 255.0);
                 for (uint32_t i = (uint32_t)screen_top; i < (uint32_t)screen_bottom; i++) {
                     uint32_t texZ = texture_z(top, bottom, screen_top, screen_bottom, (int)i, tex);
                     uint32_t color = tex->colors[(texZ * tex->width) + texX];
-                    f->pixels[i * f->width + (int)r] = color;
+                    f->pixels[i * f->width + (int)r] = lerp_u32(0xFFAAAAFF, color, shade);
                 }
             } else {
                 uint32_t color = get_color(type); //remove this
@@ -339,11 +304,17 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
             }
         }
 
+
+        screen_top = CLAMP(screen_top, 0, (int)f->height);
+        screen_bottom = CLAMP(screen_bottom, 0, (int)f->height);
+        
         for (int i = 0; i < screen_top; i++) {
             f->pixels[i * f->width + (int)r] = 0xFFAAAAFF;
         }
 
-        for (int i = screen_bottom; i < f->height; i++) {
+        int flr = screen_bottom < (int)screen_center ? (int)screen_center : screen_bottom;
+        flr = CLAMP(flr, 0, (int)f->height);
+        for (int i = flr; i < f->height; i++) {
             uint8_t intense = 0x30 + (uint8_t)(0.2 * (double)i) ;
             uint32_t color = (intense << 16) | (intense << 8) | (intense);
             f->pixels[i * f->width + (int)r] = color;
@@ -364,9 +335,7 @@ void rendercast_range(Camera* cam, Map* m, Frame* f, uint32_t ray_start, uint32_
 
 
 
-
-
-
+//legacy
 void rendercast(Camera* cam, Map* m, Frame* f) {
     rendercast_auto(cam, m, f);
 }
@@ -398,8 +367,11 @@ HitList raycast(Camera* cam, Map* m, double angle) {
 }
 
 
+
+
 void init_camera(Camera* cam, double fov, double max_distance, uint32_t rays) {
-    cam->angle = 0.0;
+    cam->roll = 0.0;
+    cam->pitch = 0.0;
     cam->fov = fov * (PI / 180.0);
     cam->max_distance = max_distance;
     cam->rays = rays;

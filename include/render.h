@@ -14,17 +14,11 @@ typedef struct {
 
 } HitList;
 
-typedef struct {
-    uint32_t height;
-    uint32_t width;
-
-    uint32_t* colors;
-} Texture;
-
 
 typedef struct {
 
-    double angle;
+    double roll;
+    double pitch;
     double max_distance;
     double pos[3];
 
@@ -36,12 +30,6 @@ typedef struct {
 
 } Camera;
 
-
-
-
-void load_texture(Texture* t, const char* path);
-
-void clear_buf(Texture* t);
 
 void rendercast_auto(Camera* cam, Map* m, Frame* f);
 
